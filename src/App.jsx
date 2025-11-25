@@ -5,6 +5,7 @@ import StockList from './components/Dashboard/StockList';
 import PortfolioCharts from './components/Dashboard/PortfolioCharts';
 import SearchBar from './components/Dashboard/SearchBar';
 import { playClickSound } from './utils/sound';
+import { MOCK_STOCKS } from './data/mockStocks';
 
 const App = () => {
   // Mock Data for User Portfolio
@@ -44,38 +45,62 @@ const App = () => {
   // View State: 'dashboard' | 'details'
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedStock, setSelectedStock] = useState(null);
+  const [editingHolding, setEditingHolding] = useState(null);
 
   const handleStockSelect = (stock) => {
     playClickSound();
     setSelectedStock(stock);
+    setEditingHolding(null); // Clear edit state if new search
     setCurrentView('details');
   };
 
   const handleBackToDashboard = () => {
+    playClickSound();
     setSelectedStock(null);
+    setEditingHolding(null);
     setCurrentView('dashboard');
   };
 
-  const handleAddStock = (newStock) => {
-    // Add to portfolio
-    const stockWithId = {
-      ...newStock,
-      // Ensure we keep the logo from the selected stock data
-      logoUrl: selectedStock?.logoUrl || ''
-    };
-
-    setStocks(prev => [...prev, stockWithId]);
+  const handleStockFormSubmit = (submittedData) => {
+    // If we have an editingHolding, we are updating an existing record
+    if (editingHolding) {
+      setStocks(prev => prev.map(s => 
+        s.stockId === submittedData.stockId ? { ...submittedData, logoUrl: s.logoUrl } : s
+      ));
+    } else {
+      // Add new to portfolio
+      const stockWithId = {
+        ...submittedData,
+        // Ensure we keep the logo from the selected stock data
+        logoUrl: selectedStock?.logoUrl || ''
+      };
+      setStocks(prev => [...prev, stockWithId]);
+    }
     
     // Return to dashboard
-    setCurrentView('dashboard');
-    setSelectedStock(null);
+    handleBackToDashboard();
   };
 
-  const handleEdit = (stock) => {
-    // For now, let's just log or implement simple edit later if needed
-    // The requirement focused on the new Purchase flow
-    console.log("Edit stock:", stock);
-    alert("Edit functionality to be implemented in next phase");
+  const handleEdit = (portfolioItem) => {
+    playClickSound();
+    
+    // 1. Find the full static data (chart, about) from MOCK_STOCKS based on symbol
+    const staticData = MOCK_STOCKS.find(s => s.symbol === portfolioItem.symbol);
+    
+    // 2. If found, use it. If not (edge case), construct a minimal object so the UI doesn't crash.
+    const fullStockData = staticData || {
+      ...portfolioItem,
+      chartData: {}, 
+      about: 'Description not available for this stock.',
+      marketCap: '-',
+      peRatio: '-',
+      dividendYield: '-',
+      changePercent: 0
+    };
+
+    setSelectedStock(fullStockData);
+    setEditingHolding(portfolioItem); // Pass the portfolio specific data (qty, price)
+    setCurrentView('details');
   };
 
   const handleDelete = (stockId) => {
@@ -114,7 +139,8 @@ const App = () => {
       {currentView === 'details' && selectedStock && (
         <StockPurchaseForm 
           stock={selectedStock} 
-          onSubmit={handleAddStock}
+          initialValues={editingHolding}
+          onSubmit={handleStockFormSubmit}
           onBack={handleBackToDashboard}
         />
       )}

@@ -4,11 +4,14 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { ArrowLeft, Info } from 'lucide-react';
 import { playClickSound } from '../../utils/sound';
 
-const StockPurchaseForm = ({ stock, onSubmit, onBack, isSubmitting = false }) => {
+const StockPurchaseForm = ({ stock, onSubmit, onBack, isSubmitting = false, initialValues = null }) => {
+  const isEditMode = !!initialValues;
   const [timeframe, setTimeframe] = useState('1D');
-  const [quantity, setQuantity] = useState(1);
-  const [price, setPrice] = useState(stock?.currentPrice || 0);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Initialize state with initialValues if in Edit mode, otherwise defaults
+  const [quantity, setQuantity] = useState(initialValues?.quantity || 1);
+  const [price, setPrice] = useState(initialValues?.purchasePrice || stock?.currentPrice || 0);
+  const [date, setDate] = useState(initialValues?.purchaseDate || new Date().toISOString().split('T')[0]);
   
   const chartData = stock?.chartData?.[timeframe] || [];
   const latestPrice = stock?.currentPrice || 0;
@@ -19,7 +22,8 @@ const StockPurchaseForm = ({ stock, onSubmit, onBack, isSubmitting = false }) =>
     playClickSound();
     if (quantity > 0 && price > 0) {
       onSubmit({
-        stockId: Date.now().toString(), // unique ID generation
+        // Keep existing ID if editing, else generate new
+        stockId: initialValues?.stockId || Date.now().toString(), 
         symbol: stock.symbol,
         companyName: stock.companyName,
         quantity: Number(quantity),
@@ -272,9 +276,11 @@ const StockPurchaseForm = ({ stock, onSubmit, onBack, isSubmitting = false }) =>
             </div>
           </div>
 
-          {/* Right Column: Buy Panel */}
+          {/* Right Column: Buy/Edit Panel */}
           <div style={{ ...styles.card, ...styles.buyPanel }}>
-            <h3 style={{ ...styles.sectionTitle, marginTop: 0 }}>Buy {stock.symbol}</h3>
+            <h3 style={{ ...styles.sectionTitle, marginTop: 0 }}>
+              {isEditMode ? `Edit ${stock.symbol}` : `Buy ${stock.symbol}`}
+            </h3>
             
             <form onSubmit={handleSubmit}>
               <div style={styles.inputGroup}>
@@ -289,7 +295,7 @@ const StockPurchaseForm = ({ stock, onSubmit, onBack, isSubmitting = false }) =>
               </div>
 
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Price Limit (₹)</label>
+                <label style={styles.label}>Price (₹)</label>
                 <input 
                   type="number" 
                   step="0.05"
@@ -324,7 +330,7 @@ const StockPurchaseForm = ({ stock, onSubmit, onBack, isSubmitting = false }) =>
               </div>
 
               <button type="submit" style={styles.submitButton} disabled={isSubmitting}>
-                {isSubmitting ? 'Processing...' : 'BUY'}
+                {isSubmitting ? 'Processing...' : (isEditMode ? 'UPDATE HOLDING' : 'BUY')}
               </button>
             </form>
           </div>
@@ -339,6 +345,12 @@ StockPurchaseForm.propTypes = {
   onSubmit: PropTypes.func.isRequired,
   onBack: PropTypes.func.isRequired,
   isSubmitting: PropTypes.bool,
+  initialValues: PropTypes.shape({
+    stockId: PropTypes.string,
+    quantity: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    purchasePrice: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    purchaseDate: PropTypes.string,
+  }),
 };
 
 export default StockPurchaseForm;
